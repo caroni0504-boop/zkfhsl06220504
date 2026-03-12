@@ -20,9 +20,12 @@ import {
   Camera,
   Home,
   ArrowLeft,
-  FolderOpen
+  FolderOpen,
+  FileDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 /// --- Types ---
 
@@ -121,6 +124,8 @@ interface ProjectData {
   title: string;
   basicSettings: {
     intention: string;
+    logline: string;
+    synopsis: string;
     genre: string;
     keywords: string;
     message: string;
@@ -153,6 +158,8 @@ const INITIAL_DATA: ProjectData = {
   title: "나의 새로운 만화 프로젝트",
   basicSettings: {
     intention: "현대 사회에서의 진정한 용기를 보여주고자 함",
+    logline: "평범한 고등학생이 우연히 마법 세계의 비밀을 알게 되며 벌어지는 모험",
+    synopsis: "평범한 일상을 살아가던 주인공은 어느 날 낡은 서점에서 발견한 책을 통해 마법의 존재를 깨닫게 된다. 제국의 감시를 피해 자신의 능력을 키워나가며, 잃어버린 가족의 비밀과 세계의 진실에 다가가는 여정을 그린다.",
     genre: "판타지 / 로맨스",
     keywords: "성장, 마법, 우정, 비밀",
     message: "진정한 힘은 내면에서 나온다",
@@ -486,6 +493,31 @@ export default function App() {
     });
   };
 
+  const exportPDF = async () => {
+    const element = document.getElementById('planner-content');
+    if (!element) return;
+    
+    try {
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#F5F5F7'
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      // Handle multi-page if needed, but for now single page or scaled
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`${data.title}_기획안.pdf`);
+    } catch (error) {
+      console.error('PDF export failed:', error);
+    }
+  };
+
   const addDesiredScene = () => {
     const newScene: DesiredScene = {
       id: Date.now().toString(),
@@ -612,21 +644,21 @@ export default function App() {
         >
           {/* Sidebar */}
           <aside className="w-64 bg-white border-r border-[#D2D2D7] flex flex-col sticky top-0 h-screen shrink-0">
-            <div className="p-6 border-b border-[#D2D2D7]">
-              <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
-                <Sparkles className="text-indigo-600 w-6 h-6" />
-                <span>{data.title} 기획</span>
+            <div className="p-4 border-b border-[#D2D2D7]">
+              <button 
+                onClick={() => setCurrentProjectId(null)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#F5F5F7] text-[#1D1D1F] rounded-xl font-bold hover:bg-[#E5E5E7] transition-all mb-4 border border-[#D2D2D7]"
+              >
+                <ArrowLeft size={18} />
+                목록으로 돌아가기
+              </button>
+              <h1 className="text-lg font-bold tracking-tight flex items-center gap-2 px-2">
+                <Sparkles className="text-indigo-600 w-5 h-5" />
+                <span className="truncate">{data.title}</span>
               </h1>
             </div>
             
             <nav className="flex-1 px-4 py-4 space-y-1">
-              <TabButton 
-                active={false} 
-                onClick={() => setCurrentProjectId(null)} 
-                icon={<ArrowLeft size={20} />} 
-                label="프로젝트 목록" 
-              />
-              <div className="my-4 border-t border-[#F5F5F7]" />
               <TabButton 
                 active={activeTab === 'overview'} 
                 onClick={() => setActiveTab('overview')} 
@@ -685,6 +717,13 @@ export default function App() {
             <p className="text-sm text-[#86868B]">{data.basicSettings.genre}</p>
           </div>
           <div className="flex items-center gap-3">
+            <button 
+              onClick={exportPDF}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-full text-sm font-medium hover:bg-indigo-700 transition-colors shadow-md"
+            >
+              <FileDown size={16} />
+              PDF 저장
+            </button>
             <button className="flex items-center gap-2 px-4 py-2 bg-white border border-[#D2D2D7] rounded-full text-sm font-medium hover:bg-[#F5F5F7] transition-colors">
               <Save size={16} />
               저장됨
@@ -692,7 +731,7 @@ export default function App() {
           </div>
         </header>
 
-        <div className="p-8 max-w-6xl mx-auto">
+        <div id="planner-content" className="p-8 max-w-6xl mx-auto">
           <AnimatePresence mode="wait">
             {activeTab === 'overview' && (
               <motion.div 
@@ -724,6 +763,26 @@ export default function App() {
                         onChange={(e) => saveData({ ...data, title: e.target.value })}
                         className="w-full text-2xl font-bold bg-[#F5F5F7] rounded-xl p-4 border-none focus:ring-2 focus:ring-indigo-500"
                         placeholder="작품 제목을 입력하세요"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-[#86868B] uppercase tracking-wider">로그라인 (Logline)</label>
+                      <textarea 
+                        value={data.basicSettings.logline}
+                        onChange={(e) => saveData({ ...data, basicSettings: { ...data.basicSettings, logline: e.target.value } })}
+                        className="w-full h-20 bg-[#F5F5F7] rounded-xl p-4 border-none focus:ring-2 focus:ring-indigo-500 resize-none text-sm font-medium"
+                        placeholder="작품의 핵심 내용을 한 문장으로 요약해주세요."
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-[#86868B] uppercase tracking-wider">요약 시놉시스 (Summary Synopsis)</label>
+                      <textarea 
+                        value={data.basicSettings.synopsis}
+                        onChange={(e) => saveData({ ...data, basicSettings: { ...data.basicSettings, synopsis: e.target.value } })}
+                        className="w-full h-40 bg-[#F5F5F7] rounded-xl p-4 border-none focus:ring-2 focus:ring-indigo-500 resize-none text-sm leading-relaxed"
+                        placeholder="전체적인 줄거리를 요약하여 입력해주세요."
                       />
                     </div>
                     
@@ -1278,6 +1337,23 @@ export default function App() {
                 exit={{ opacity: 0, y: -10 }}
                 className="space-y-10"
               >
+                <section>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-bold flex items-center gap-2">
+                      <Sparkles size={20} className="text-indigo-600" />
+                      요약 시놉시스 (Summary Synopsis)
+                    </h3>
+                  </div>
+                  <div className="bg-white rounded-2xl p-6 border border-[#D2D2D7] shadow-sm">
+                    <textarea 
+                      value={data.basicSettings.synopsis}
+                      onChange={(e) => saveData({ ...data, basicSettings: { ...data.basicSettings, synopsis: e.target.value } })}
+                      className="w-full h-32 bg-[#F5F5F7] rounded-xl p-4 border-none focus:ring-2 focus:ring-indigo-500 resize-none text-sm leading-relaxed"
+                      placeholder="전체적인 줄거리를 요약하여 입력해주세요."
+                    />
+                  </div>
+                </section>
+
                 <section>
                   <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                     <Layers size={20} className="text-purple-500" />
