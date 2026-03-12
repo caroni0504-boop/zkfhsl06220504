@@ -559,7 +559,7 @@ export default function App() {
               <div>
                 <h1 className="text-4xl font-bold tracking-tight mb-2 flex items-center gap-3">
                   <Sparkles className="text-indigo-600 w-10 h-10" />
-                  Manhwa Planner
+                  만화/웹툰 기획
                 </h1>
                 <p className="text-[#86868B] text-lg">당신의 상상을 체계적인 기획으로 만들어보세요.</p>
               </div>
